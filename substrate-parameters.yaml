@@ -49,6 +49,10 @@ access:
     # AWS Backup's service role: takes the daily snapshots and runs the
     # weekly restore tests (AWS's own managed backup and restore policies).
     - arn:aws:iam::632839731153:role/substrate-backup
+    # Restore validation (restore_validation.tf, #84): kms:Decrypt on the
+    # app key, only through Secrets Manager, to read the database
+    # password and check each restore test's copy.
+    - arn:aws:iam::632839731153:role/substrate-restore-validator
     # Created by AWS when the account joined Rookwright's organization:
     # console access through AWS's account-access service, and two roles
     # Rookwright's management account (537695480935) uses to manage it.
@@ -216,7 +220,10 @@ functions_review:
   max_days_between_reviews: 35
   review_within_hours: 168
   reviewers: [elliskern, kernwill]
-  allowed_ingress: []
+  # The restore validation prober reaches the database on 5432
+  # (restore_validation.tf, #84): db_validation from restore_prober.
+  allowed_ingress:
+    - "sg-0fe3cd6b1bd6fbb12 tcp:5432-5432 from sg-083a4fa6a841d32fe"
 
 # Audit logging failures (au-5) alert the incident alert recipients
 # through an incident issue (audit_alerts.tf): CloudTrail stopped or
