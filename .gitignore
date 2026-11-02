@@ -1,5 +1,7 @@
 okta.env
 *.pem
+# AWS's public RDS certificate bundle, which the restore prober verifies against.
+!lambda/restore_validation/rds-global-bundle.pem
 *.key
 
 # Terraform working files and state (never commit state)
@@ -11,3 +13,6 @@ crash.log
 
 # Saved Terraform plans are applied, then deleted; never committed.
 *.tfplan
+
+# Python bytecode from running the restore validation tests.
+__pycache__/

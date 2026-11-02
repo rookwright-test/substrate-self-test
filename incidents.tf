@@ -250,6 +250,8 @@ resource "aws_sqs_queue_policy" "incident_dlq" {
             aws_cloudwatch_event_rule.guardduty_drills.arn,
             aws_cloudwatch_event_rule.cloudtrail_stopped.arn,
             aws_cloudwatch_event_rule.restore_tests.arn,
+            aws_cloudwatch_event_rule.restore_validation.arn,
+            aws_cloudwatch_event_rule.restore_canary.arn,
           ]
         }
       }
