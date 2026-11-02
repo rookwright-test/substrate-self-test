@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SUBSTRATE_COMMIT: 1159c2ae9c39b0464d9f533ed838c9a3d7cc9209
+  SUBSTRATE_COMMIT: 69296fbdbd7ccbf11bd693c89a8cfc016631dfaa
 
 jobs:
   verify:
@@ -69,6 +69,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      # sc-13: a CMVP reading NIST couldn't give is surfaced as an issue.
+      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -89,6 +91,40 @@ jobs:
           cache: false
       - name: Build substrate
         run: cd "$RUNNER_TEMP/substrate-src" && go build -trimpath -o "$RUNNER_TEMP/substrate" ./cmd/substrate
+      # sc-13 (2026-11-01): NIST CMVP readings of the declared modules.
+      # The last reading is kept in the Actions cache, so a NIST outage
+      # falls back to it for up to 7 days; substrate itself never writes
+      # anywhere. Every fallback or unreadable page is printed here and
+      # opened (or commented on) as an issue: never silent.
+      - name: Restore the last CMVP reading
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/cmvp
+          key: cmvp-${{ github.run_id }}
+          restore-keys: cmvp-
+      - name: Read NIST CMVP certificates (sc-13)
+        id: cmvp
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/cmvp"
+          "$RUNNER_TEMP/substrate" collect-cmvp --parameters substrate-parameters.yaml \
+            --previous "$RUNNER_TEMP/cmvp/cmvp.json" --out "$RUNNER_TEMP/cmvp/cmvp.json" | tee "$RUNNER_TEMP/cmvp.log"
+          echo "warnings=$(jq '.warnings | length' "$RUNNER_TEMP/cmvp/cmvp.json")" >> "$GITHUB_OUTPUT"
+      - name: Keep this CMVP reading for the next run
+        if: always() && hashFiles(format('{0}/cmvp/cmvp.json', runner.temp)) != ''
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/cmvp
+          key: cmvp-${{ github.run_id }}
+      - name: Surface CMVP warnings
+        if: steps.cmvp.outputs.warnings != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          body="$(printf 'NIST CMVP certificates could not all be read (run %s/%s/actions/runs/%s):\n\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"; jq -r '.warnings[] | "- " + .' "$RUNNER_TEMP/cmvp/cmvp.json"; printf '\nWithin the 7-day grace period sc-13 is judged on the previous reading; after it, sc-13 is undetermined.\n')"
+          open=$(gh issue list --label cmvp-warning --state open --json number -q '.[0].number')
+          if [ -n "$open" ]; then gh issue comment "$open" --body "$body"
+          else gh issue create --title "sc-13: NIST CMVP readings unavailable" --label cmvp-warning --assignee kernwill --body "$body"; fi
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: arn:aws:iam::632839731153:role/substrate-collector
@@ -125,5 +161,5 @@ jobs:
           # workflow that the gate judges the live system (cm-4.2).
           quiet "$RUNNER_TEMP/substrate" compile --source . --boundary substrate-boundary.yaml --parameters substrate-parameters.yaml \
             --runtime "$t/runtime" --region-runtime "$t/runtime-us-west-2" --documents "$t/documents.json" --documents-root . --tls "$t/tls.json" \
-            --security-txt "$t/security_txt.json" --components "$t/components.json" --register substrate-controls.yaml --as-of "$(date -u +%Y-%m-%d)" --out "$t/out"
+            --security-txt "$t/security_txt.json" --cmvp "$RUNNER_TEMP/cmvp/cmvp.json" --components "$t/components.json" --register substrate-controls.yaml --as-of "$(date -u +%Y-%m-%d)" --out "$t/out"
           "$RUNNER_TEMP/substrate" gate --baseline substrate-baseline-live.json --current "$t/out/ksi_results.json"

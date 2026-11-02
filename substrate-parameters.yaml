@@ -268,3 +268,30 @@ disposal:
     substrate-self-test-audit-632839731153: 365
   keep:
     substrate-self-test-tfstate-632839731153: Terraform state, the system's own record of what it manages
+
+# sc-13 (2026-11-01): the cryptographic modules protecting federal
+# customer data (FedRAMP CR26 CMU-CSO-CMD), and whether each is
+# validated under NIST's CMVP (CMU-CSO-UVM: SHOULD at Class C). Only AWS
+# is judged: it holds the federal customer data (decided 2026-10-23).
+# substrate reads each certificate's NIST page on every live run.
+crypto_modules:
+  # Every KMS-backed encryption: the S3 buckets (all SSE-KMS since #67),
+  # RDS storage and its us-west-2 replica, EBS, the trail, Secrets
+  # Manager.
+  - name: AWS Key Management Service HSM
+    component: aws
+    uses: [kms]
+    cmvp_certificate: 4884
+  # TLS on every AWS API call. Decided 2026-11-01: justified, not
+  # claimed as validated.
+  - name: AWS service endpoints (standard TLS)
+    component: aws
+    uses: [aws-api-tls]
+    justification: AWS terminates API TLS under its own FedRAMP High authorization and publishes no CMVP certificate per endpoint; adopting FIPS endpoints, and observing their use in CloudTrail's TLS details, is being evaluated.
+    review_by: 2027-01-26
+  - name: Okta (Integrator org)
+    component: okta
+    not_judged: holds workforce identities, no federal customer data
+  - name: GitHub (rookwright-test organization)
+    component: github
+    not_judged: holds infrastructure code and CI, no federal customer data
