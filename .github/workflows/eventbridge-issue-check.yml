@@ -1,0 +1,41 @@
+name: EventBridge issue check
+
+# Issues EventBridge opens (backup.tf, incidents.tf, audit_alerts.tf)
+# ask for labels and an assignee, and substrate finds restore tests,
+# incidents and drills by those labels. GitHub drops both silently when
+# the connection's token can't set them (2026-10-31: #77 and #78 arrived
+# bare after the repo move, and substrate couldn't see them). This makes
+# that loud: an automatic issue that arrives without them gets a comment
+# and fails this run, which emails the repository's watchers.
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  check:
+    if: contains(github.event.issue.body, 'Opened automatically by EventBridge rule')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the labels and assignee the rule asked for
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: |
+          labels=$(jq '.issue.labels | length' "$GITHUB_EVENT_PATH")
+          assignees=$(jq '.issue.assignees | length' "$GITHUB_EVENT_PATH")
+          echo "issue #$NUMBER: $labels label(s), $assignees assignee(s)"
+          if [ "$labels" -gt 0 ] && [ "$assignees" -gt 0 ]; then
+            exit 0
+          fi
+          gh issue comment "$NUMBER" --repo "$REPO" --body "$(printf '%s\n' \
+            "@kernwill this issue arrived without its labels or assignee, so substrate can't count it." \
+            "" \
+            "1. Add the labels the EventBridge rule names (backup.tf, incidents.tf or audit_alerts.tf) and assign it." \
+            "2. Check the token on the EventBridge connection still has Issues: Read and write, approved by the organization.")"
+          echo "::error::EventBridge issue #$NUMBER has $labels label(s) and $assignees assignee(s)"
+          exit 1
