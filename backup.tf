@@ -67,9 +67,10 @@ resource "aws_backup_restore_testing_plan" "weekly" {
   }
 }
 
-# The restored copy gets the smallest class, no network access (the
-# database's own subnet group and rule-less security group) and is
-# deleted after an hour.
+# The restored copy gets the smallest class, the database's own subnet
+# group and security groups (reachable only by the restore validation
+# prober, restore_validation.tf) and is deleted after the hour the
+# validator has to check it.
 resource "aws_backup_restore_testing_selection" "database" {
   name                      = "database"
   restore_testing_plan_name = aws_backup_restore_testing_plan.weekly.name
@@ -80,7 +81,7 @@ resource "aws_backup_restore_testing_selection" "database" {
   restore_metadata_overrides = {
     dbInstanceClass     = "db.t4g.micro"
     dbSubnetGroupName   = aws_db_subnet_group.app.name
-    vpcSecurityGroupIds = jsonencode([aws_security_group.db.id])
+    vpcSecurityGroupIds = jsonencode([aws_security_group.db.id, aws_security_group.db_validation.id])
   }
 }
 

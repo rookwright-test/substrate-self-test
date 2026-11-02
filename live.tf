@@ -470,7 +470,7 @@ resource "aws_db_instance" "app" {
   password_wo             = ephemeral.aws_secretsmanager_random_password.db_master.random_password
   password_wo_version     = 1
   db_subnet_group_name    = aws_db_subnet_group.app.name
-  vpc_security_group_ids  = [aws_security_group.db.id]
+  vpc_security_group_ids  = [aws_security_group.db.id, aws_security_group.db_validation.id]
   publicly_accessible     = false
   backup_retention_period = 7
   skip_final_snapshot     = true

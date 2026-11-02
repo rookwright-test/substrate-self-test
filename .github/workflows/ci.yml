@@ -28,4 +28,5 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
       - name: Run tests
-        run: echo "tests would run here"
+        # The restore validation Lambdas' unit tests (standard library only).
+        run: python3 -m unittest discover -s lambda/restore_validation -t lambda/restore_validation -v
