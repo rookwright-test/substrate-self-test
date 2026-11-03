@@ -72,7 +72,7 @@ jobs:
     name: substrate-live
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: read
       id-token: write
@@ -132,6 +132,15 @@ jobs:
           open=$(gh issue list --label cmvp-warning --state open --json number -q '.[0].number')
           if [ -n "$open" ]; then gh issue comment "$open" --body "$body"
           else gh issue create --title "sc-13: NIST CMVP readings unavailable" --label cmvp-warning --assignee kernwill --body "$body"; fi
+      # ac-6.2 (substrate ADR 0033): GitHub has no permission history on
+      # the Free plan, so each run's repository admins are kept here, for
+      # 90 days, and anyone who was an admin in that time is judged.
+      - name: Restore the admin history
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/admins
+          key: admins-${{ github.run_id }}
+          restore-keys: admins-
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: arn:aws:iam::632839731153:role/substrate-collector
@@ -156,6 +165,7 @@ jobs:
             --github-owner rookwright-test --github-repo substrate-self-test --github-token-path "$t/github.token"
           # The second declared Region (substrate ADR 0028): its own run,
           # whose per-Region services compile judges beside us-east-2's.
+          quiet "$s" record-admins --runtime "$t/runtime" --history "$t/admins/history.json"
           quiet env AWS_REGION=us-west-2 "$s" collect --out "$t/runtime-us-west-2" --okta-org-url "$OKTA_ORG_URL" --okta-client-id "$OKTA_CLIENT_ID" \
             --okta-key-id "$OKTA_KEY_ID" --okta-private-key "$t/okta.pem" --aws-audit-regions us-east-2,us-west-2
           quiet "$s" collect-documents --dir docs/policies --out "$t/documents.json" \
@@ -170,3 +180,9 @@ jobs:
             --runtime "$t/runtime" --region-runtime "$t/runtime-us-west-2" --documents "$t/documents.json" --documents-root . --tls "$t/tls.json" \
             --security-txt "$t/security_txt.json" --cmvp "$RUNNER_TEMP/cmvp/cmvp.json" --components "$t/components.json" --register substrate-controls.yaml --as-of "$(date -u +%Y-%m-%d)" --out "$t/out"
           "$RUNNER_TEMP/substrate" gate --baseline substrate-baseline-live.json --current "$t/out/ksi_results.json" --nodes "$t/out/ir/nodes.jsonl"
+      - name: Keep the admin history for the next run
+        if: always() && hashFiles(format('{0}/admins/history.json', runner.temp)) != ''
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/admins
+          key: admins-${{ github.run_id }}
