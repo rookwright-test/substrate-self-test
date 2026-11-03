@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SUBSTRATE_COMMIT: 9ea14c784fc1470e6bb91f8df6e695d815dd3bea
+  SUBSTRATE_COMMIT: aecc8192d23f3d76ffd612daa634266179e7a0ae
 
 jobs:
   verify:
@@ -60,6 +60,13 @@ jobs:
             --parameters substrate-parameters.yaml --out "$RUNNER_TEMP/out" > "$RUNNER_TEMP/compile.log" 2>&1 \
             || { echo "substrate compile failed"; exit 2; }
           "$RUNNER_TEMP/substrate" gate --baseline substrate-baseline-pr.json --current "$RUNNER_TEMP/out/ksi_results.json"
+      # Before the apply: an inbound rule or an IAM principal with security
+      # access that this change creates must be declared in this change
+      # (substrate ADR 0032). Prints only names already in this
+      # repository; what it can't read yet appears as a warning.
+      - name: Check new rules and holders are declared
+        run: |
+          "$RUNNER_TEMP/substrate" plan-check --source . --boundary substrate-boundary.yaml --parameters substrate-parameters.yaml
 
   verify-live:
     name: substrate-live
