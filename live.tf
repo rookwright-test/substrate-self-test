@@ -498,6 +498,20 @@ resource "aws_securityhub_account" "main" {
   depends_on               = [aws_config_configuration_recorder_status.main]
 }
 
+# Cross-Region aggregation, home Region us-east-2 (2026-11-03): us-west-2's
+# findings are also visible here. In a linked Region, Security Hub's
+# Config.1 doesn't require IAM's global resource types, which are
+# recorded once, here (us-west-2's recorder excludes them). Without it,
+# Config.1 failed in us-west-2. No cost (AWS: "Cross-Region aggregation
+# does not add to the cost of Security Hub CSPM"). Substrate reads only
+# each Region's own findings (aws-securityhub/v0.2.0), so none is counted
+# twice.
+resource "aws_securityhub_finding_aggregator" "main" {
+  linking_mode      = "SPECIFIED_REGIONS"
+  specified_regions = ["us-west-2"]
+  depends_on        = [aws_securityhub_account.main, aws_securityhub_account.west]
+}
+
 resource "aws_inspector2_enabler" "main" {
   account_ids    = [data.aws_caller_identity.current.account_id]
   resource_types = ["EC2", "ECR"]
