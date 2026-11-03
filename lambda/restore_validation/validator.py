@@ -22,6 +22,8 @@ import datetime
 import json
 import os
 
+CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+
 MAX_CANARY_AGE = datetime.timedelta(hours=26)
 
 
@@ -111,9 +113,19 @@ def validate(clients, env, job_id):
             % (name, restored["Engine"], restored["EngineVersion"], canary["newest"], minutes, canary["count"]))
 
 
+def load_config(path=CONFIG):
+    """SOURCE_DB, DB_SECRET_ARN and PROBER_FUNCTION, packaged by Terraform."""
+    with open(path) as f:
+        config = json.load(f)
+    missing = [k for k in ("SOURCE_DB", "DB_SECRET_ARN", "PROBER_FUNCTION") if not config.get(k)]
+    if missing:
+        raise ValueError("config.json lacks %s" % ", ".join(missing))
+    return config
+
+
 def handler(event, context, clients=None, env=None):
     clients = clients or Clients()
-    env = env or os.environ
+    env = env or load_config()
     if event.get("action") == "write-canary":
         out = write_canary(clients, env)
         print(json.dumps(out))

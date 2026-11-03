@@ -18,11 +18,33 @@
 # original group keeps no rules. A failed invocation lands in the
 # incident dead-letter queue, which substrate watches. ---
 
+# The validator's settings are packaged as config.json rather than
+# environment variables: Lambda decrypts environment variables with the
+# caller's own kms:Decrypt, which the read-only drift role is denied, so
+# every drift check saw them missing (2026-11-02). None is secret.
+locals {
+  restore_prober_name      = "substrate-restore-prober"
+  restore_validation_files = ["pgwire.py", "prober.py", "validator.py", "rds-global-bundle.pem"]
+}
+
 data "archive_file" "restore_validation" {
   type        = "zip"
-  source_dir  = "${path.module}/lambda/restore_validation"
   output_path = "${path.module}/.terraform/restore_validation.zip"
-  excludes    = ["test_restore_validation.py", "__pycache__"]
+  dynamic "source" {
+    for_each = local.restore_validation_files
+    content {
+      content  = file("${path.module}/lambda/restore_validation/${source.value}")
+      filename = source.value
+    }
+  }
+  source {
+    content = jsonencode({
+      SOURCE_DB       = aws_db_instance.app.identifier
+      DB_SECRET_ARN   = aws_secretsmanager_secret.db_master.arn
+      PROBER_FUNCTION = local.restore_prober_name
+    })
+    filename = "config.json"
+  }
 }
 
 resource "aws_security_group" "restore_prober" {
@@ -77,7 +99,7 @@ resource "aws_cloudwatch_log_group" "restore_prober" {
 }
 
 resource "aws_lambda_function" "restore_prober" {
-  function_name    = "substrate-restore-prober"
+  function_name    = local.restore_prober_name
   description      = "Restore validation: writes and reads the database canary (in the VPC, no AWS permissions)"
   role             = aws_iam_role.restore_prober.arn
   runtime          = "python3.13"
@@ -174,13 +196,6 @@ resource "aws_lambda_function" "restore_validator" {
   source_code_hash = data.archive_file.restore_validation.output_base64sha256
   timeout          = 120
   memory_size      = 128
-  environment {
-    variables = {
-      SOURCE_DB       = aws_db_instance.app.identifier
-      DB_SECRET_ARN   = aws_secretsmanager_secret.db_master.arn
-      PROBER_FUNCTION = aws_lambda_function.restore_prober.function_name
-    }
-  }
   dead_letter_config {
     target_arn = aws_sqs_queue.incident_dlq.arn
   }

@@ -2,6 +2,9 @@
 
 import base64
 import datetime
+import json
+import os
+import tempfile
 import unittest
 
 import pgwire
@@ -109,6 +112,22 @@ class ValidatorTest(unittest.TestCase):
         c.report = broken
         with self.assertRaises(RuntimeError):
             run(c)
+
+
+class ConfigTest(unittest.TestCase):
+    def write(self, config):
+        f = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
+        json.dump(config, f)
+        f.close()
+        self.addCleanup(os.unlink, f.name)
+        return f.name
+
+    def test_loads(self):
+        self.assertEqual(validator.load_config(self.write(ENV)), ENV)
+
+    def test_missing_setting_fails(self):
+        with self.assertRaisesRegex(ValueError, "lacks PROBER_FUNCTION"):
+            validator.load_config(self.write(dict(ENV, PROBER_FUNCTION="")))
 
 
 if __name__ == "__main__":
