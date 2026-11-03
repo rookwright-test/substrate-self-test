@@ -35,6 +35,12 @@ access:
   #
   # AWS: an action on any of these services counts as security access.
   aws_security_services: [access-analyzer, cloudtrail, config, guardduty, iam, inspector2, kms, macie2, organizations, securityhub, sso]
+  # Encrypting and decrypting counts only with these keys (substrate
+  # ADR 0031): the audit key, which protects CloudTrail, Config and the
+  # audit bucket. The app keys protect application data; managing any
+  # key still counts.
+  aws_security_keys:
+    - arn:aws:kms:us-east-2:632839731153:key/3a1dcfe9-b40a-45d6-93d1-0e2193d978e0
   aws:
     # Terraform and the administrator.
     - arn:aws:iam::632839731153:user/substrate-admin
@@ -49,10 +55,6 @@ access:
     # AWS Backup's service role: takes the daily snapshots and runs the
     # weekly restore tests (AWS's own managed backup and restore policies).
     - arn:aws:iam::632839731153:role/substrate-backup
-    # Restore validation (restore_validation.tf, #84): kms:Decrypt on the
-    # app key, only through Secrets Manager, to read the database
-    # password and check each restore test's copy.
-    - arn:aws:iam::632839731153:role/substrate-restore-validator
     # Created by AWS when the account joined Rookwright's organization:
     # console access through AWS's account-access service, and two roles
     # Rookwright's management account (537695480935) uses to manage it.
