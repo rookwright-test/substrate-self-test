@@ -1,0 +1,77 @@
+{
+  "schema": "okta-admin-checkpoint/v1",
+  "org_created": "2026-10-05T21:33:48Z",
+  "as_of": "2026-11-04T17:24:32Z",
+  "from": "org-creation",
+  "event_count": 28,
+  "events_sha256": "22570878e3a75c51f0b907f896e081516bda77403673e636c01f260ed41b4423",
+  "principals": [
+    {
+      "type": "PublicClientAppEntity",
+      "id": "0oa18e2pm9kK4q9K3698",
+      "name": "substrate collector (read-only)",
+      "roles": [
+        "Read-only Administrator"
+      ],
+      "deactivated": false,
+      "held": [
+        {
+          "from": "2026-10-05T21:46:56.171Z",
+          "to": "2026-10-07T17:25:33.532Z"
+        },
+        {
+          "from": "2026-10-07T17:25:34.052Z",
+          "to": "2026-10-07T17:42:57.907Z"
+        },
+        {
+          "from": "2026-10-07T17:46:45.227Z",
+          "to": "2026-10-07T17:48:46.028Z"
+        },
+        {
+          "from": "2026-10-07T19:55:11.615Z",
+          "to": "2026-10-07T19:57:01.357Z"
+        },
+        {
+          "from": "2026-10-07T19:57:24.159Z"
+        }
+      ]
+    },
+    {
+      "type": "User",
+      "id": "00u18e2kkvtD7H1sA698",
+      "roles": [
+        "Super Organization Administrator"
+      ],
+      "deactivated": false,
+      "held": [
+        {
+          "from": "2026-10-05T21:33:52.801Z"
+        }
+      ]
+    },
+    {
+      "type": "User",
+      "id": "00u18hcnj3r1RDbkx698",
+      "roles": [],
+      "deactivated": false,
+      "held": [
+        {
+          "from": "2026-10-07T20:34:53.27Z",
+          "to": "2026-10-07T20:42:18.683Z"
+        }
+      ]
+    },
+    {
+      "type": "User",
+      "id": "00u18hj49edkBqGRz698",
+      "roles": [],
+      "deactivated": false,
+      "held": [
+        {
+          "from": "2026-10-07T23:26:44.343Z",
+          "to": "2026-10-07T23:28:07.357Z"
+        }
+      ]
+    }
+  ]
+}

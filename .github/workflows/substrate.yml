@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SUBSTRATE_COMMIT: 90101c3a6b2a149749be9b9e6aea788ee070b4e4
+  SUBSTRATE_COMMIT: 0cd1971683cdbe7c2071b1801dec0124b4272a5f
 
 jobs:
   verify:
@@ -182,7 +182,12 @@ jobs:
           rm -f "$t/okta.pem" "$t/github.token"
           # The binary is named, not "$s", so substrate can read from this
           # workflow that the gate judges the live system (cm-4.2).
+          # okta-admin-checkpoint.json (substrate ADR 0035) is where the Okta
+          # admin replay starts once the System Log no longer reaches the
+          # org's creation (2027-01-02). Until then compile checks it
+          # against the log. Each one lasts 89 days from its as_of.
           quiet "$RUNNER_TEMP/substrate" compile --source . --boundary substrate-boundary.yaml --parameters substrate-parameters.yaml \
+            --okta-admin-checkpoint okta-admin-checkpoint.json \
             --runtime "$t/runtime" --region-runtime "$t/runtime-us-west-2" --documents "$t/documents.json" --documents-root . --tls "$t/tls.json" \
             --security-txt "$t/security_txt.json" --cmvp "$RUNNER_TEMP/cmvp/cmvp.json" --components "$t/components.json" --register substrate-controls.yaml --as-of "$(date -u +%Y-%m-%d)" --out "$t/out"
           "$RUNNER_TEMP/substrate" gate --baseline substrate-baseline-live.json --current "$t/out/ksi_results.json" --nodes "$t/out/ir/nodes.jsonl"
