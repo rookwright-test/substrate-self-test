@@ -185,7 +185,25 @@ jobs:
           quiet "$RUNNER_TEMP/substrate" compile --source . --boundary substrate-boundary.yaml --parameters substrate-parameters.yaml \
             --runtime "$t/runtime" --region-runtime "$t/runtime-us-west-2" --documents "$t/documents.json" --documents-root . --tls "$t/tls.json" \
             --security-txt "$t/security_txt.json" --cmvp "$RUNNER_TEMP/cmvp/cmvp.json" --components "$t/components.json" --register substrate-controls.yaml --as-of "$(date -u +%Y-%m-%d)" --out "$t/out"
-          "$RUNNER_TEMP/substrate" gate --baseline substrate-baseline-live.json --current "$t/out/ksi_results.json" --nodes "$t/out/ir/nodes.jsonl"
+          echo "compiled=true" >> "$GITHUB_OUTPUT"
+          printf '{"run_id":"%s","commit":"%s","substrate_commit":"%s","started_at":"%s"}\n' \
+            "$GITHUB_RUN_ID" "$GITHUB_SHA" "$SUBSTRATE_COMMIT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$t/out/run.json"
+          "$RUNNER_TEMP/substrate" gate --baseline substrate-baseline-live.json --current "$t/out/ksi_results.json" --nodes "$t/out/ir/nodes.jsonl" | tee "$t/out/gate.txt"
+      # Run history (history.tf): this run's compiled output, the gate's
+      # verdict included, pass or fail, kept for a year so substrate's
+      # UI can show the live system over time. Written as the history
+      # writer role, which can only add objects there.
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        if: always() && steps.live.outputs.compiled == 'true'
+        with:
+          role-to-assume: arn:aws:iam::632839731153:role/substrate-history-writer
+          aws-region: us-east-2
+          role-session-name: substrate-history-${{ github.run_id }}
+      - name: Keep this run's compiled output
+        if: always() && steps.live.outputs.compiled == 'true'
+        run: |
+          aws s3 cp --recursive --only-show-errors "$RUNNER_TEMP/out" \
+            "s3://substrate-self-test-run-history-632839731153/runs/$(date -u +%Y-%m-%d)/$GITHUB_RUN_ID/"
       - name: Keep the admin history for the next run
         if: always() && steps.live.outputs.admins == 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
