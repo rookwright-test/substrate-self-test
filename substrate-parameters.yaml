@@ -105,7 +105,8 @@ non_privileged_use:
   # trail doesn't record its objects) and the Terraform state bucket
   # (the infrastructure's configuration). The application buckets are
   # nonsecurity data.
-  aws_security_buckets: [substrate-self-test-audit-632839731153, substrate-self-test-tfstate-632839731153]
+  # The run-history bucket: the live runs' compiled results (history.tf).
+  aws_security_buckets: [substrate-self-test-audit-632839731153, substrate-self-test-tfstate-632839731153, substrate-self-test-run-history-632839731153]
   # The EventBridge connection's secret (the issue-writer GitHub token).
   # Corrected 2026-10-26: setting a new token with update-connection
   # makes EventBridge read the old secret on the caller's behalf
@@ -283,6 +284,7 @@ disposal:
     substrate-self-test-app-data-632839731153: 365
     substrate-self-test-app-logs-632839731153: 365
     substrate-self-test-audit-632839731153: 365
+    substrate-self-test-run-history-632839731153: 365
   keep:
     substrate-self-test-tfstate-632839731153: Terraform state, the system's own record of what it manages
 
