@@ -16,15 +16,29 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # Continuous assurance (2026-11-05): the live system is also judged
+  # every 6 hours, not only after a merge, so a change made outside a
+  # pull request (an Okta admin, a console edit) is judged within 6
+  # hours. Not hourly: substrate's GitHub collector reads at most 500
+  # push, schedule and manual runs in 30 days (281 today, about 400 with
+  # this schedule). cm-4.2 and substrate ADR 0030 count push runs only,
+  # so a scheduled run's verdict never enters them. :41 stays clear of
+  # the other schedules (drift at :17, control tasks at :00).
+  schedule:
+    - cron: "41 */6 * * *"
 
 permissions: {}
 
+# Scheduled runs have their own group. In a shared one, a scheduled run
+# queued behind a merge's run would cancel any merge run already waiting
+# (GitHub keeps one pending run per group), and cm-4.2 would then read
+# that cancelled run as the merge's verification.
 concurrency:
-  group: substrate-${{ github.ref }}
+  group: substrate-${{ github.ref }}${{ github.event_name == 'schedule' && '-scheduled' || '' }}
   cancel-in-progress: false
 
 env:
-  SUBSTRATE_COMMIT: 0cd1971683cdbe7c2071b1801dec0124b4272a5f
+  SUBSTRATE_COMMIT: 65f33ee7c7f1fba211470482f383015e612448ad
 
 jobs:
   verify:
@@ -68,9 +82,39 @@ jobs:
         run: |
           "$RUNNER_TEMP/substrate" plan-check --source . --boundary substrate-boundary.yaml --parameters substrate-parameters.yaml
 
+  # A scheduled run steps aside when a merge's live run is going or
+  # waiting: that run judges the same system, and two at once would
+  # share Okta's rate limit.
+  schedule-guard:
+    name: schedule-guard
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      go: ${{ steps.check.outputs.go }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          busy=0
+          for status in in_progress queued; do
+            n=$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/substrate.yml/runs" -f event=push -f branch=main -f status="$status" -f per_page=1 -q .total_count)
+            busy=$((busy + n))
+          done
+          if [ "$busy" -gt 0 ]; then
+            echo "A merge's live run is going or waiting; it judges the live system, so this scheduled run steps aside."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+
   verify-live:
     name: substrate-live
-    if: github.event_name == 'push'
+    needs: schedule-guard
+    if: always() && (github.event_name == 'push' || (github.event_name == 'schedule' && needs.schedule-guard.outputs.go == 'true'))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -78,6 +122,8 @@ jobs:
       id-token: write
       # sc-13: a CMVP reading NIST couldn't give is surfaced as an issue.
       issues: write
+      # A scheduled run reads whether a merge's run started meanwhile.
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -209,8 +255,31 @@ jobs:
         run: |
           aws s3 cp --recursive --only-show-errors "$RUNNER_TEMP/out" \
             "s3://substrate-self-test-run-history-632839731153/runs/$(date -u +%Y-%m-%d)/$GITHUB_RUN_ID/"
+      # The next run restores the newest admin history saved. If a merge's
+      # run started while this scheduled run was going, the two restored
+      # the same history; whichever saved last would drop admins only the
+      # other one saw (ac-6.2). So a scheduled run keeps its history only
+      # when no merge's run started or was going meanwhile; otherwise the
+      # merge's history stands, as it would without the schedule.
+      - name: Check no merge's run overlapped this one
+        id: overlap
+        if: always() && steps.live.outputs.admins == 'true' && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          started=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" -q .run_started_at)
+          n=$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/substrate.yml/runs" -f event=push -f branch=main -f created=">=$started" -f per_page=1 -q .total_count)
+          for status in in_progress queued; do
+            n=$((n + $(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/substrate.yml/runs" -f event=push -f branch=main -f status="$status" -f per_page=1 -q .total_count)))
+          done
+          if [ "$n" -gt 0 ]; then
+            echo "A merge's live run overlapped this one; its admin history is kept instead of this run's."
+            echo "keep=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "keep=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Keep the admin history for the next run
-        if: always() && steps.live.outputs.admins == 'true'
+        if: always() && steps.live.outputs.admins == 'true' && (github.event_name == 'push' || steps.overlap.outputs.keep == 'true')
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/admins
