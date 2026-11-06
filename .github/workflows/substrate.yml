@@ -255,6 +255,31 @@ jobs:
         run: |
           aws s3 cp --recursive --only-show-errors "$RUNNER_TEMP/out" \
             "s3://substrate-self-test-run-history-632839731153/runs/$(date -u +%Y-%m-%d)/$GITHUB_RUN_ID/"
+      # The hosted demo at demo.rookwright.com (substrate ADR 0036) reads
+      # its runs from a private R2 bucket. This copies the run there, with
+      # the live baseline, using a token that can only write to that
+      # bucket. A demo problem must never fail this job (cm-4.2 reads its
+      # result), so the step can fail without failing the job; it still
+      # shows red here, and the demo shows its data as stale.
+      - name: Publish this run to the hosted demo
+        if: always() && steps.live.outputs.compiled == 'true'
+        continue-on-error: true
+        env:
+          R2_ENDPOINT: ${{ secrets.DEMO_R2_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.DEMO_R2_WRITE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DEMO_R2_WRITE_SECRET_ACCESS_KEY }}
+          # The history writer's session token isn't R2's.
+          AWS_SESSION_TOKEN: ""
+          AWS_REGION: auto
+        run: |
+          if [ -z "$R2_ENDPOINT" ] || [ -z "$AWS_ACCESS_KEY_ID" ]; then
+            echo "::warning::The hosted demo's R2 secrets aren't set, so this run isn't published to it."
+            exit 1
+          fi
+          aws s3 cp --recursive --only-show-errors --endpoint-url "$R2_ENDPOINT" "$RUNNER_TEMP/out" \
+            "s3://rookwright-demo-runs/runs/$(date -u +%Y-%m-%d)/$GITHUB_RUN_ID/"
+          aws s3 cp --only-show-errors --endpoint-url "$R2_ENDPOINT" substrate-baseline-live.json \
+            "s3://rookwright-demo-runs/baseline-live.json"
       # The next run restores the newest admin history saved. If a merge's
       # run started while this scheduled run was going, the two restored
       # the same history; whichever saved last would drop admins only the
