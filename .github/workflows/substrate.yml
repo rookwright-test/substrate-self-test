@@ -70,8 +70,11 @@ jobs:
         run: cd "$RUNNER_TEMP/substrate-src" && go build -trimpath -o "$RUNNER_TEMP/substrate" ./cmd/substrate
       - name: Compile and gate the declared configuration
         run: |
+          # attestations.yaml (substrate ADR 0019): read here too, so an
+          # attestation a pull request adds is checked before it merges.
           "$RUNNER_TEMP/substrate" compile --source . --boundary substrate-boundary.yaml \
-            --parameters substrate-parameters.yaml --out "$RUNNER_TEMP/out" > "$RUNNER_TEMP/compile.log" 2>&1 \
+            --parameters substrate-parameters.yaml --attestations attestations.yaml --as-of "$(date -u +%Y-%m-%d)" \
+            --out "$RUNNER_TEMP/out" > "$RUNNER_TEMP/compile.log" 2>&1 \
             || { echo "substrate compile failed"; exit 2; }
           "$RUNNER_TEMP/substrate" gate --baseline substrate-baseline-pr.json --current "$RUNNER_TEMP/out/ksi_results.json"
       # Before the apply: an inbound rule or an IAM principal with security
@@ -233,7 +236,7 @@ jobs:
           # org's creation (2027-01-02). Until then compile checks it
           # against the log. Each one lasts 89 days from its as_of.
           quiet "$RUNNER_TEMP/substrate" compile --source . --boundary substrate-boundary.yaml --parameters substrate-parameters.yaml \
-            --okta-admin-checkpoint okta-admin-checkpoint.json \
+            --okta-admin-checkpoint okta-admin-checkpoint.json --attestations attestations.yaml \
             --runtime "$t/runtime" --region-runtime "$t/runtime-us-west-2" --documents "$t/documents.json" --documents-root . --tls "$t/tls.json" \
             --security-txt "$t/security_txt.json" --cmvp "$RUNNER_TEMP/cmvp/cmvp.json" --components "$t/components.json" --register substrate-controls.yaml --as-of "$(date -u +%Y-%m-%d)" --out "$t/out"
           echo "compiled=true" >> "$GITHUB_OUTPUT"
