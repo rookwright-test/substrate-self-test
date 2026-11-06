@@ -1,5 +1,7 @@
 ---
-controls: [ps-2, ps-9]
+controls:
+    - ps-2
+    - ps-9
 owner: CEO
 ---
 
@@ -58,3 +60,6 @@ responsibilities:
   assets or PII updates the matching document;
 - check notification decisions under `incident-response-pii.md`;
 - review these documents at least every 3 months.
+
+
+No edits or changed needed
