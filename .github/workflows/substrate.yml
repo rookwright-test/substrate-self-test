@@ -248,7 +248,7 @@ jobs:
       # UI can show the live system over time. Written as the history
       # writer role, which can only add objects there.
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
-        if: always() && steps.live.outputs.compiled == 'true'
+        if: always() && (steps.live.outputs.compiled == 'true' || steps.live.outcome == 'failure')
         with:
           role-to-assume: arn:aws:iam::632839731153:role/substrate-history-writer
           aws-region: us-east-2
@@ -258,6 +258,25 @@ jobs:
         run: |
           aws s3 cp --recursive --only-show-errors "$RUNNER_TEMP/out" \
             "s3://substrate-self-test-run-history-632839731153/runs/$(date -u +%Y-%m-%d)/$GITHUB_RUN_ID/"
+      # When a substrate command in the live step fails, this public log
+      # says only "failed: <command>". Its own output (step.log, written
+      # by quiet() for the command that failed) goes to the private
+      # run-history bucket instead, so the cause can be read later. The
+      # first failure without it, #102's merge run on 2026-11-06, passed
+      # on re-run, and why it failed is unknown.
+      # A gate regression fails the step after compile; that verdict is
+      # already kept as gate.txt, so this runs only when a command before
+      # it failed.
+      - name: Keep the failed step's log (private)
+        if: always() && steps.live.outcome == 'failure' && steps.live.outputs.compiled != 'true'
+        run: |
+          if [ -s "$RUNNER_TEMP/step.log" ]; then
+            aws s3 cp --only-show-errors "$RUNNER_TEMP/step.log" \
+              "s3://substrate-self-test-run-history-632839731153/runs/$(date -u +%Y-%m-%d)/$GITHUB_RUN_ID/failure.log"
+            echo "The failed command's output is in the private run-history bucket, as failure.log beside this run."
+          else
+            echo "The failed command wrote no output."
+          fi
       # The hosted demo at demo.rookwright.com (substrate ADR 0036) reads
       # its runs from a private R2 bucket. This copies the run there, with
       # the live baseline, using a token that can only write to that
