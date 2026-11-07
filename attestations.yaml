@@ -9,3 +9,9 @@
 # attestation", ADR 0037), which opens a pull request as you. Every
 # entry needs a reviewer's approval before it merges, like every change
 # to this repository.
+- id: ps-3-2026-11-07
+  controls:
+    - ps-3
+  statement: The only person that currently have access is me.
+  attester: Will Kern, CEO Rookwright
+  attested_on: "2026-11-07"
