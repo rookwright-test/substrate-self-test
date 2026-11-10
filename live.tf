@@ -250,6 +250,103 @@ resource "aws_cloudtrail" "main" {
       not_starts_with = ["${aws_s3_bucket.audit.arn}/"]
     }
   }
+
+  # au-9, au-6 (2026-11-10): who reads or removes the audit logs
+  # themselves. The selector above leaves the audit bucket out because
+  # recording its writes would record each delivery of the last; reads,
+  # deletes and permission changes never come from CloudTrail or Config,
+  # so these two can't loop. This closes the gap Security Hub's S3.9
+  # (server access logging) pointed at, without an SSE-S3 log bucket,
+  # which would have added an unvalidated crypto use to sc-13 (every
+  # bucket is SSE-KMS since #67). Reading audit logs is security work
+  # for ac-6.2 (the bucket is in aws_security_buckets).
+  advanced_event_selector {
+    name = "Audit bucket reads"
+    field_selector {
+      field  = "eventCategory"
+      equals = ["Data"]
+    }
+    field_selector {
+      field  = "resources.type"
+      equals = ["AWS::S3::Object"]
+    }
+    field_selector {
+      field       = "resources.ARN"
+      starts_with = ["${aws_s3_bucket.audit.arn}/"]
+    }
+    field_selector {
+      field  = "readOnly"
+      equals = ["true"]
+    }
+  }
+
+  advanced_event_selector {
+    name = "Audit bucket deletes and permission changes"
+    field_selector {
+      field  = "eventCategory"
+      equals = ["Data"]
+    }
+    field_selector {
+      field  = "resources.type"
+      equals = ["AWS::S3::Object"]
+    }
+    field_selector {
+      field       = "resources.ARN"
+      starts_with = ["${aws_s3_bucket.audit.arn}/"]
+    }
+    field_selector {
+      field  = "eventName"
+      equals = ["DeleteObject", "DeleteObjects", "PutObjectAcl", "PutObjectRetention", "PutObjectLegalHold"]
+    }
+  }
+}
+
+# --- Security Hub S3.9 (server access logging), suppressed with its
+# reason (2026-11-10, founder's decision): every bucket's object access
+# is recorded by the trail's data events above, which name who acted and
+# can be integrity-validated, so S3 server access logs would duplicate
+# them, and their bucket would have to be SSE-S3 (see above). Suppressed
+# findings stay visible in Security Hub with this note. ---
+resource "aws_securityhub_automation_rule" "s3_9_cloudtrail" {
+  rule_name   = "S3.9 covered by CloudTrail data events"
+  description = "S3 object access for these buckets is recorded by CloudTrail data events (trail substrate-self-test), so server access logging isn't used."
+  rule_order  = 1
+  rule_status = "ENABLED"
+
+  criteria {
+    compliance_security_control_id {
+      comparison = "EQUALS"
+      value      = "S3.9"
+    }
+    dynamic "resource_id" {
+      for_each = [
+        aws_s3_bucket.audit.arn,
+        aws_s3_bucket.tfstate.arn,
+        aws_s3_bucket.run_history.arn,
+        aws_s3_bucket.app_data.arn,
+        aws_s3_bucket.app_logs.arn,
+      ]
+      content {
+        comparison = "EQUALS"
+        value      = resource_id.value
+      }
+    }
+  }
+
+  actions {
+    type = "FINDING_FIELDS_UPDATE"
+    finding_fields_update {
+      workflow {
+        status = "SUPPRESSED"
+      }
+      note {
+        text       = "Object access is recorded by CloudTrail data events (trail substrate-self-test, including audit bucket reads and deletes); server access logging isn't used. See live.tf."
+        updated_by = "terraform"
+      }
+    }
+  }
+
+  depends_on = [aws_securityhub_account.main]
 }
 
 # --- cm-2.2, cm-6: AWS Config recording all supported resource types. ---
