@@ -23,10 +23,12 @@ resource "aws_securityhub_account" "west" {
   depends_on               = [aws_config_configuration_recorder_status.west]
 }
 
+# Lambda scanning here too, matching us-east-2: no functions run in
+# us-west-2 today, so it costs nothing until one does.
 resource "aws_inspector2_enabler" "west" {
   provider       = aws.west
   account_ids    = [data.aws_caller_identity.current.account_id]
-  resource_types = ["EC2", "ECR"]
+  resource_types = ["EC2", "ECR", "LAMBDA"]
 }
 
 resource "aws_route53_resolver_dnssec_config" "default_vpc_west" {
