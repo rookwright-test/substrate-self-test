@@ -512,9 +512,15 @@ resource "aws_securityhub_finding_aggregator" "main" {
   depends_on        = [aws_securityhub_account.main, aws_securityhub_account.west]
 }
 
+# Lambda standard scanning (2026-11-10, ra-5, si-2.2): the restore
+# validator and prober (#84) are Python 3.13 functions whose packages
+# were not scanned; the first monthly vulnerability review (#82) found
+# the gap. US$0.30 per function per month (Inspector pricing page,
+# 2026-11-10), about US$0.60 for the two. Code scanning (a further
+# US$0.60 per function) stays off.
 resource "aws_inspector2_enabler" "main" {
   account_ids    = [data.aws_caller_identity.current.account_id]
-  resource_types = ["EC2", "ECR"]
+  resource_types = ["EC2", "ECR", "LAMBDA"]
 }
 
 resource "aws_macie2_account" "main" {
