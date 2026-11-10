@@ -165,6 +165,12 @@ contingency_tests:
   recovery_point_objective_hours: 24
   review_within_hours: 72
   reviewers: [kernwill]
+  # cp-9.1 (2026-11-08): the newest test's restored copy must also be
+  # validated SUCCESSFUL by AWS Backup's restore validation (the
+  # restore_validator Lambda), not only restored. The 2026-11-07 test
+  # was the first to validate; the three before it timed out, before
+  # the validator was fixed in #91.
+  require_validation: true
 transmission:
   # The AWS services the system uses, probed at
   # <service>.<region>.amazonaws.com in each declared Region for TLS
