@@ -62,12 +62,19 @@ The plans in these documents assume people's time and some spending:
 the reviews and drill acknowledgements, the weekly audit log review,
 the yearly reviews, and the AWS, Okta and Cloudflare services.
 
-- **Time:** [the hours each week the Administrator and the Independent
-  Reviewer commit to security work]
-- **Budget:** [what is budgeted each year for security services and
-  tools, and who approves spending]
+- **Time:** The Administrator commits 3 hours a week to security work:
+  the scheduled reviews, drills and their acknowledgements, and keeping
+  these documents current. The Independent Reviewer commits 1 hour a
+  week: reviewing pull requests and signing off reviews.
+- **Budget:** Up to $1,000 a year for security services and tools,
+  approved by the Administrator (the CEO). Current spending is about $15
+  a month for AWS and $5 a month for Cloudflare; Okta and GitHub cost
+  nothing at present.
 - **Open spending decisions:** AWS Shield Advanced (sc-5) is not
-  enabled. [Decision and reason]
+  enabled. It costs $3,000 a month with a one-year commitment, and the
+  environment exposes no public endpoints: internet gateway traffic is
+  blocked, and AWS Shield Standard, which is free and automatic, already
+  applies. Revisit if the environment ever serves the public.
 
 ## Control baseline (PL-10)
 
