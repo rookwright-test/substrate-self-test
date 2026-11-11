@@ -13,11 +13,13 @@ changes; and whenever a supplier announces a security-relevant change.
 
 Every system, component and service the environment depends on:
 
-- AWS (the account and its us-east-2 services);
+- AWS (the account and its us-east-2 and us-west-2 services);
 - Okta (the Integrator Free Plan org);
 - GitHub (repository hosting, Actions runners, secret scanning);
-- the GitHub Actions the CI workflow uses;
-- the Terraform AWS provider;
+- Cloudflare (Workers, Containers, R2 and Access, which host
+  Rookwright's demo with a copy of each run);
+- the GitHub Actions the workflows use;
+- the Terraform AWS and archive providers;
 - the container image named in `k8s/deployment.yaml`.
 
 ## Assessment and supplier review (RA-3(1), SR-6)
@@ -31,8 +33,9 @@ what changed.
 | AWS organization guardrails | A service control policy limits the account to us-east-2 and us-west-2 (us-east-1 for global services) | Intended: it bounds where resources can exist. Rookwright administers the organization since 2026-10-08, so changes are deliberate. |
 | Okta Integrator Free Plan | It is a developer org, not Okta's FedRAMP offering. A previous org's admin access was lost and could not be recovered. | Accepted for a self-test only. A production offering must use an identity provider authorized at Class C. Admin access is now tied to two registered devices. |
 | GitHub | Repository compromise or loss of service | Branch protection that binds administrators; secret scanning and push protection; a local clone (`contingency-plan.md`) |
-| GitHub Actions `actions/checkout`, `actions/dependency-review-action` | A version tag can be moved to different code | Each is pinned to a full commit SHA, with its version in a comment. Updating one is a reviewed change. |
-| Terraform AWS provider 5.100.0 | A tampered provider binary | Provider hashes are pinned in `.terraform.lock.hcl` and checked on install |
+| Cloudflare | Exposure of the demo's copy of run data (workforce logins, IP addresses cut to /24); loss of the demo | Accepted for a demo only. Access admits a named list of people; the publishing token can write to one R2 bucket only, and the demo's token can only read it; the demo never writes back. No evidence is kept only there: the run history in AWS is the record. |
+| GitHub Actions `actions/checkout`, `actions/cache` (restore and save), `actions/dependency-review-action`, `actions/setup-go`, `aws-actions/configure-aws-credentials`, `hashicorp/setup-terraform` | A version tag can be moved to different code | Each is pinned to a full commit SHA, with its version in a comment. Updating one is a reviewed change. |
+| Terraform AWS provider 6.69.1 and archive provider 2.8.1 | A tampered provider binary | Provider hashes are pinned in `.terraform.lock.hcl` and checked on install |
 | Container image `example/web:1.0` | Unknown provenance | Not deployed; it is a placeholder in the manifests. It must be replaced with a pinned, verified image before any deployment. |
 
 ## Criticality analysis (SA-15(3))
@@ -59,6 +62,7 @@ Current result:
 | AWS account | Yes (AWS evidence) | Yes | No | Yes |
 | GitHub Actions | No (CI only) | No | Yes (the required check) | Yes |
 | Terraform provider | No | Yes (it applies changes) | No | Yes |
+| Cloudflare (hosted demo) | No (it shows copies; the record stays in AWS) | No | No | No |
 | Container image | No | No | No | No (not deployed) |
 
 ## Notification of supply chain compromises (SR-8)

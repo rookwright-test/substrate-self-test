@@ -51,9 +51,30 @@ account, and a pull request that adds or removes a data store updates it.
 | Database read replica and replicated backups | RDS `substrate-self-test-replica` | us-west-2 | Backups 7 days |
 | Database master password | Secrets Manager `substrate-self-test/db-master` | us-east-2 | The current value only |
 | Incident issues EventBridge couldn't open | SQS `substrate-incident-issues-dlq` | us-east-2 | 14 days |
+| A copy of each live run for Rookwright's hosted demo (review packets with IP addresses cut to /24; never the full packet) | Cloudflare R2 `rookwright-demo-runs` | Cloudflare, Eastern North America (ENAM) | 365 days (bucket lifecycle rule) |
 
 The encrypted EBS volume is unattached and stores nothing the
 environment uses.
+
+## Resources for security (PM-3, SA-2)
+
+The plans in these documents assume people's time and some spending:
+the reviews and drill acknowledgements, the weekly audit log review,
+the yearly reviews, and the AWS, Okta and Cloudflare services.
+
+- **Time:** The Administrator commits 3 hours a week to security work:
+  the scheduled reviews, drills and their acknowledgements, and keeping
+  these documents current. The Independent Reviewer commits 1 hour a
+  week: reviewing pull requests and signing off reviews.
+- **Budget:** Up to $1,000 a year for security services and tools,
+  approved by the Administrator (the CEO). Current spending is about $15
+  a month for AWS and $5 a month for Cloudflare; Okta and GitHub cost
+  nothing at present.
+- **Open spending decisions:** AWS Shield Advanced (sc-5) is not
+  enabled. It costs $3,000 a month with a one-year commitment, and the
+  environment exposes no public endpoints: internet gateway traffic is
+  blocked, and AWS Shield Standard, which is free and automatic, already
+  applies. Revisit if the environment ever serves the public.
 
 ## Control baseline (PL-10)
 
