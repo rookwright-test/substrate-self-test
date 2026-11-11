@@ -60,6 +60,3 @@ responsibilities:
   assets or PII updates the matching document;
 - check notification decisions under `incident-response-pii.md`;
 - review these documents at least every 3 months.
-
-
-No edits or changed needed

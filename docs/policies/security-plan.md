@@ -51,9 +51,23 @@ account, and a pull request that adds or removes a data store updates it.
 | Database read replica and replicated backups | RDS `substrate-self-test-replica` | us-west-2 | Backups 7 days |
 | Database master password | Secrets Manager `substrate-self-test/db-master` | us-east-2 | The current value only |
 | Incident issues EventBridge couldn't open | SQS `substrate-incident-issues-dlq` | us-east-2 | 14 days |
+| A copy of each live run for Rookwright's hosted demo (review packets with IP addresses cut to /24; never the full packet) | Cloudflare R2 `rookwright-demo-runs` | [Cloudflare R2: the bucket's location] | [the bucket's lifecycle rule] |
 
 The encrypted EBS volume is unattached and stores nothing the
 environment uses.
+
+## Resources for security (PM-3, SA-2)
+
+The plans in these documents assume people's time and some spending:
+the reviews and drill acknowledgements, the weekly audit log review,
+the yearly reviews, and the AWS, Okta and Cloudflare services.
+
+- **Time:** [the hours each week the Administrator and the Independent
+  Reviewer commit to security work]
+- **Budget:** [what is budgeted each year for security services and
+  tools, and who approves spending]
+- **Open spending decisions:** AWS Shield Advanced (sc-5) is not
+  enabled. [Decision and reason]
 
 ## Control baseline (PL-10)
 

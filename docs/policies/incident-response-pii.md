@@ -15,6 +15,19 @@ accounts of its contributors. Substrate hashes GitHub author identities
 before writing them anywhere. No customer or federal data exists in the
 environment (`security-plan.md`).
 
+Where that data is (`security-plan.md`, "Where data is stored"):
+
+- Okta itself, and the Okta System Log archived in CloudWatch Logs:
+  logins and the IP addresses people signed in from.
+- CloudTrail, in the audit bucket and CloudWatch Logs: IAM user names
+  and source IP addresses.
+- Substrate's run history, including each weekly audit log review
+  packet: logins and source IP addresses.
+- The hosted demo's copy of each run in Cloudflare R2, behind Cloudflare
+  Access: the same, with IP addresses cut to their network (/24), and
+  never the review packet's full copy. Cloudflare Access also holds the
+  email addresses of the people allowed to sign in to the demo.
+
 A breach is any loss of control over that data, for example:
 
 - unauthorized access to the Okta org or its System Log;
@@ -57,8 +70,8 @@ Mitigations offered according to the assessment:
 
 - The breach notification law of each US state where an affected
   individual lives.
-- The terms of any supplier whose service was involved: AWS, Okta or
-  GitHub.
+- The terms of any supplier whose service was involved: AWS, Okta,
+  GitHub or Cloudflare.
 - If the environment ever holds federal information, which it does
   not today, the incident reporting requirements of the agency
   customer and of FedRAMP. This plan must be revised before that
