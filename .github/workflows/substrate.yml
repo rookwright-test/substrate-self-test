@@ -38,7 +38,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SUBSTRATE_COMMIT: 5624c9d31d4a72fc3c01aaba56b20ea174b494df
+  SUBSTRATE_COMMIT: af49b71973ef8cfd3a05d76e93ee467040cabc88
 
 jobs:
   verify:
@@ -228,6 +228,14 @@ jobs:
           quiet "$s" collect-tls --boundary substrate-boundary.yaml --parameters substrate-parameters.yaml --out "$t/tls.json"
           quiet "$s" collect-security-txt --domain rookwright.com --out "$t/security_txt.json"
           quiet "$s" collect-components --source . --github-token-path "$t/github.token" --out "$t/components.json"
+          # The weekly audit log review's packet (substrate ADR 0040):
+          # read-only, a review aid, never evidence. Its window follows the
+          # review's open issue (from collect's github.json). A failure here
+          # only leaves this run without a packet; it never fails the run.
+          "$s" review-audit-log --regions us-east-2,us-west-2 --github "$t/runtime/github.json" \
+            --okta-org-url "$OKTA_ORG_URL" --okta-client-id "$OKTA_CLIENT_ID" --okta-key-id "$OKTA_KEY_ID" \
+            --okta-private-key "$t/okta.pem" --out "$t/review" > "$t/review.log" 2>&1 \
+            || echo "::warning::review-audit-log failed, so this run has no review packet."
           rm -f "$t/okta.pem" "$t/github.token"
           # The binary is named, not "$s", so substrate can read from this
           # workflow that the gate judges the live system (cm-4.2).
@@ -240,6 +248,9 @@ jobs:
             --runtime "$t/runtime" --region-runtime "$t/runtime-us-west-2" --documents "$t/documents.json" --documents-root . --tls "$t/tls.json" \
             --security-txt "$t/security_txt.json" --cmvp "$RUNNER_TEMP/cmvp/cmvp.json" --components "$t/components.json" --register substrate-controls.yaml --as-of "$(date -u +%Y-%m-%d)" --out "$t/out"
           echo "compiled=true" >> "$GITHUB_OUTPUT"
+          if [ -f "$t/review/audit-log-review.json" ]; then
+            mkdir -p "$t/out/review" && cp "$t/review/"audit-log-review* "$t/out/review/"
+          fi
           printf '{"run_id":"%s","commit":"%s","substrate_commit":"%s","started_at":"%s"}\n' \
             "$GITHUB_RUN_ID" "$GITHUB_SHA" "$SUBSTRATE_COMMIT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$t/out/run.json"
           "$RUNNER_TEMP/substrate" gate --baseline substrate-baseline-live.json --current "$t/out/ksi_results.json" --nodes "$t/out/ir/nodes.jsonl" | tee "$t/out/gate.txt"
@@ -298,8 +309,12 @@ jobs:
             echo "::warning::The hosted demo's R2 secrets aren't set, so this run isn't published to it."
             exit 1
           fi
+          # The review packet's full copy (exact IP addresses) and its draft
+          # stay in the private run history; the demo gets only the copy
+          # with addresses cut to /24 (substrate ADR 0040).
           aws s3 cp --recursive --only-show-errors --endpoint-url "$R2_ENDPOINT" "$RUNNER_TEMP/out" \
-            "s3://rookwright-demo-runs/runs/$(date -u +%Y-%m-%d)/$GITHUB_RUN_ID/"
+            "s3://rookwright-demo-runs/runs/$(date -u +%Y-%m-%d)/$GITHUB_RUN_ID/" \
+            --exclude "review/audit-log-review.json" --exclude "review/audit-log-review.md"
           aws s3 cp --only-show-errors --endpoint-url "$R2_ENDPOINT" substrate-baseline-live.json \
             "s3://rookwright-demo-runs/baseline-live.json"
       # The next run restores the newest admin history saved. If a merge's
