@@ -51,7 +51,7 @@ account, and a pull request that adds or removes a data store updates it.
 | Database read replica and replicated backups | RDS `substrate-self-test-replica` | us-west-2 | Backups 7 days |
 | Database master password | Secrets Manager `substrate-self-test/db-master` | us-east-2 | The current value only |
 | Incident issues EventBridge couldn't open | SQS `substrate-incident-issues-dlq` | us-east-2 | 14 days |
-| A copy of each live run for Rookwright's hosted demo (review packets with IP addresses cut to /24; never the full packet) | Cloudflare R2 `rookwright-demo-runs` | [Cloudflare R2: the bucket's location] | [the bucket's lifecycle rule] |
+| A copy of each live run for Rookwright's hosted demo (review packets with IP addresses cut to /24; never the full packet) | Cloudflare R2 `rookwright-demo-runs` | Cloudflare, Eastern North America (ENAM) | 365 days (bucket lifecycle rule) |
 
 The encrypted EBS volume is unattached and stores nothing the
 environment uses.
