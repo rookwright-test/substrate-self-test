@@ -102,11 +102,24 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          busy=0
-          for status in in_progress queued; do
-            n=$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/substrate.yml/runs" -f event=push -f branch=main -f status="$status" -f per_page=1 -q .total_count)
-            busy=$((busy + n))
-          done
+          runs="repos/$GITHUB_REPOSITORY/actions/workflows/substrate.yml/runs"
+          busy=$(gh api -X GET "$runs" -f event=push -f branch=main -f status=in_progress -f per_page=1 -q .total_count)
+          # A merge's live run waits at most a few minutes for a runner
+          # and runs at most 45. One queued for more than 3 hours is
+          # stuck on GitHub's side (run 43096099088 sat queued with no
+          # jobs from 2026-11-11 and could be neither cancelled nor
+          # deleted), and would otherwise make every scheduled run step
+          # aside while still reporting success. Ignore it, loudly.
+          cutoff=$(date -u -d '3 hours ago' +%s)
+          queued=$(gh api -X GET "$runs" -f event=push -f branch=main -f status=queued -f per_page=100 -q '.workflow_runs[] | "\(.id) \(.created_at)"')
+          while read -r id created; do
+            [ -n "$id" ] || continue
+            if [ "$(date -u -d "$created" +%s)" -lt "$cutoff" ]; then
+              echo "::warning title=Stuck merge run ignored::Run $id has been queued since $created. It is ignored so this scheduled run judges the live system. Cancel or delete it, or ask GitHub Support to."
+            else
+              busy=$((busy + 1))
+            fi
+          done <<< "$queued"
           if [ "$busy" -gt 0 ]; then
             echo "A merge's live run is going or waiting; it judges the live system, so this scheduled run steps aside."
             echo "go=false" >> "$GITHUB_OUTPUT"
