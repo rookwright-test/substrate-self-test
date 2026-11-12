@@ -87,8 +87,14 @@ non_privileged_use:
   # URL. No other app was opened. Okta's date moves to the next day
   # (AWS and GitHub keep theirs); the admin URL is
   # https://integrator-2677113-admin.okta.com.
+  #
+  # 2026-11-11 20:53 UTC: the same again. will+1234 signed in through the
+  # Okta Dashboard before the Admin Console, to look up the Okta apps for
+  # the yearly configuration review (#109). No other app was opened. The
+  # #122 merge's live run failed ac-6.2 on it. Okta's date moves to the
+  # next day.
   since: 2026-10-21
-  okta_since: 2026-11-03
+  okta_since: 2026-11-12
   # Okta Admin Console: administration. Okta Authenticator: setting up
   # or changing one's own sign-in methods (Okta Verify), which is
   # account security.
