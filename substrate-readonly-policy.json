@@ -189,7 +189,7 @@
     {
       "Sid": "SubstratePublicIngressCollector",
       "Effect": "Allow",
-      "Action": ["ec2:DescribeVpcBlockPublicAccessOptions", "ec2:DescribeVpcBlockPublicAccessExclusions", "lambda:ListFunctions", "lambda:ListFunctionUrlConfigs", "cloudfront:ListDistributions"],
+      "Action": ["ec2:DescribeVpcBlockPublicAccessOptions", "ec2:DescribeVpcBlockPublicAccessExclusions", "lambda:ListFunctions", "lambda:ListFunctionUrlConfigs", "cloudfront:ListDistributions", "shield:ListProtections"],
       "Resource": "*"
     }
   ]
