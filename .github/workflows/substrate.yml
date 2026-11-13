@@ -38,7 +38,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SUBSTRATE_COMMIT: 09a2bba86de89fd5e298d088cdcc9cbdd1c721ff
+  SUBSTRATE_COMMIT: 9ae1b9c29c296347f4807c5dd29c0e62c5ed0f5e
 
 jobs:
   verify:
@@ -115,7 +115,7 @@ jobs:
           while read -r id created; do
             [ -n "$id" ] || continue
             if [ "$(date -u -d "$created" +%s)" -lt "$cutoff" ]; then
-              echo "::warning title=Stuck merge run ignored::Run $id has been queued since $created. It is ignored so this scheduled run judges the live system. Cancel or delete it, or ask GitHub Support to."
+              echo "::warning title=Stuck merge run ignored::Run $id has been queued since $created. It is ignored so this scheduled run judges the live system. Cancel or delete it; if GitHub refuses, ask in GitHub Community discussions (Actions)."
             else
               busy=$((busy + 1))
             fi
@@ -249,6 +249,17 @@ jobs:
             --okta-org-url "$OKTA_ORG_URL" --okta-client-id "$OKTA_CLIENT_ID" --okta-key-id "$OKTA_KEY_ID" \
             --okta-private-key "$t/okta.pem" --out "$t/review" > "$t/review.log" 2>&1 \
             || echo "::warning::review-audit-log failed, so this run has no review packet."
+          # The monthly vulnerability review's packet (substrate ADR 0041):
+          # read-only, a review aid, never evidence. Inspector findings in
+          # both Regions, Dependabot alerts through the read token, and
+          # CISA's KEV catalog (--kev: one HTTPS GET, sending only a
+          # User-Agent). The window starts when the previous review's
+          # issue opened. A failure only leaves this run without a packet.
+          "$s" review-vulnerability --regions us-east-2,us-west-2 --github "$t/runtime/github.json" \
+            --source . --boundary substrate-boundary.yaml --kev \
+            --github-owner rookwright-test --github-repo substrate-self-test --github-token-path "$t/github.token" \
+            --out "$t/review" > "$t/review-vulnerability.log" 2>&1 \
+            || echo "::warning::review-vulnerability failed, so this run has no vulnerability review packet."
           rm -f "$t/okta.pem" "$t/github.token"
           # The binary is named, not "$s", so substrate can read from this
           # workflow that the gate judges the live system (cm-4.2).
@@ -263,6 +274,9 @@ jobs:
           echo "compiled=true" >> "$GITHUB_OUTPUT"
           if [ -f "$t/review/audit-log-review.json" ]; then
             mkdir -p "$t/out/review" && cp "$t/review/"audit-log-review* "$t/out/review/"
+          fi
+          if [ -f "$t/review/vulnerability-review.json" ]; then
+            mkdir -p "$t/out/review" && cp "$t/review/"vulnerability-review* "$t/out/review/"
           fi
           printf '{"run_id":"%s","commit":"%s","substrate_commit":"%s","started_at":"%s"}\n' \
             "$GITHUB_RUN_ID" "$GITHUB_SHA" "$SUBSTRATE_COMMIT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$t/out/run.json"
@@ -327,7 +341,8 @@ jobs:
           # with addresses cut to /24 (substrate ADR 0040).
           aws s3 cp --recursive --only-show-errors --endpoint-url "$R2_ENDPOINT" "$RUNNER_TEMP/out" \
             "s3://rookwright-demo-runs/runs/$(date -u +%Y-%m-%d)/$GITHUB_RUN_ID/" \
-            --exclude "review/audit-log-review.json" --exclude "review/audit-log-review.md"
+            --exclude "review/audit-log-review.json" --exclude "review/audit-log-review.md" \
+            --exclude "review/vulnerability-review.json" --exclude "review/vulnerability-review.md"
           aws s3 cp --only-show-errors --endpoint-url "$R2_ENDPOINT" substrate-baseline-live.json \
             "s3://rookwright-demo-runs/baseline-live.json"
       # The next run restores the newest admin history saved. If a merge's
