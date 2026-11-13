@@ -268,6 +268,19 @@ supported_components:
 vulnerability_response:
   certification_class: c
 
+# Denial-of-service protection (sc-5), as NIST SC-5 leaves it to the
+# organization: the objective, the event types, and the measures used
+# (substrate ADR 0042 decision 3). The system serves nothing to the
+# public: no-public-ingress is checked in every boundary Region over
+# every resource type AWS Config records. AWS Shield Standard also
+# applies, automatically, but substrate can't confirm it, so it isn't
+# declared here; Shield Advanced isn't bought (security plan, #122).
+denial_of_service:
+  objective: limit
+  event_types:
+    - network and request floods aimed at the system's endpoints
+  measures: [no-public-ingress]
+
 # The nightly inventory (cm-8.3, pl-9): AWS resources in AWS Config's
 # inventory but neither in Terraform state nor created by AWS. Finding
 # one opens an incident issue. The exceptions are resources deliberately
