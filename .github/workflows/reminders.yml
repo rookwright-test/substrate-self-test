@@ -1,0 +1,66 @@
+name: Reminders
+
+# substrate ADR 0044. Once a day, substrate reads substrate-controls.yaml
+# and the control-task issues (read-only) and works out the day's
+# reminders: an open task issue due in 7 days or tomorrow, or on its
+# first day overdue; a task issue closed yesterday in a way that won't
+# count; an accepted risk's review in 30 or 7 days. Each is printed below,
+# then posted to the Slack channel behind the SLACK_WEBHOOK_URL secret.
+# Nothing goes anywhere else. Its own once-a-day schedule, not the
+# scheduler's six-hourly one: reminders are worked out from the date, so
+# each run sends that day's reminders.
+on:
+  schedule:
+    - cron: "0 14 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: reminders
+  cancel-in-progress: false
+
+env:
+  SUBSTRATE_COMMIT: 2f4274c715bb71d589c1e4dc6cc21e9da4d0afd7
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      # Full history: substrate reads the register's commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: rookwright/substrate
+          ref: ${{ env.SUBSTRATE_COMMIT }}
+          ssh-key: ${{ secrets.SUBSTRATE_DEPLOY_KEY }}
+          path: .substrate-src
+          persist-credentials: false
+      - name: Move substrate out of the checkout
+        run: mv .substrate-src "$RUNNER_TEMP/substrate-src"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: ${{ runner.temp }}/substrate-src/go.mod
+          cache: false
+      - name: Build substrate
+        run: cd "$RUNNER_TEMP/substrate-src" && go build -trimpath -o "$RUNNER_TEMP/substrate" ./cmd/substrate
+      - name: Send today's reminders
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          umask 077
+          printf '%s' "$GH_TOKEN" > "$RUNNER_TEMP/github.token"
+          rc=0
+          "$RUNNER_TEMP/substrate" remind --register substrate-controls.yaml --as-of "$(date -u +%Y-%m-%d)" \
+            --github-owner "${GITHUB_REPOSITORY%/*}" --github-repo "${GITHUB_REPOSITORY#*/}" \
+            --github-token-path "$RUNNER_TEMP/github.token" || rc=$?
+          rm -f "$RUNNER_TEMP/github.token"
+          exit "$rc"
