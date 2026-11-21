@@ -4,7 +4,11 @@ name: Reminders
 # and the control-task issues (read-only) and works out the day's
 # reminders: an open task issue due in 7 days or tomorrow, or on its
 # first day overdue; a task issue closed yesterday in a way that won't
-# count; an accepted risk's review in 30 or 7 days. Each is printed below,
+# count; an accepted risk's review in 30 or 7 days; and each declared
+# drill or review (substrate-parameters.yaml: ir-3, cp-4, ac-6.7, cm-7.1)
+# every day it awaits a response, once when it's missed, and the day
+# after it's closed in a way that won't count (ADR 0044 amendment,
+# 2026-11-21, after drill #130 was missed). Each is printed below,
 # then posted to the Slack channel behind the SLACK_WEBHOOK_URL secret.
 # Nothing goes anywhere else. Its own once-a-day schedule, not the
 # scheduler's six-hourly one: reminders are worked out from the date, so
@@ -21,7 +25,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SUBSTRATE_COMMIT: 2f4274c715bb71d589c1e4dc6cc21e9da4d0afd7
+  SUBSTRATE_COMMIT: b53c977c27516c45febda7ec38b8893c7bf55929
 
 jobs:
   remind:
@@ -59,7 +63,7 @@ jobs:
           umask 077
           printf '%s' "$GH_TOKEN" > "$RUNNER_TEMP/github.token"
           rc=0
-          "$RUNNER_TEMP/substrate" remind --register substrate-controls.yaml --as-of "$(date -u +%Y-%m-%d)" \
+          "$RUNNER_TEMP/substrate" remind --register substrate-controls.yaml --parameters substrate-parameters.yaml --as-of "$(date -u +%Y-%m-%d)" \
             --github-owner "${GITHUB_REPOSITORY%/*}" --github-repo "${GITHUB_REPOSITORY#*/}" \
             --github-token-path "$RUNNER_TEMP/github.token" || rc=$?
           rm -f "$RUNNER_TEMP/github.token"

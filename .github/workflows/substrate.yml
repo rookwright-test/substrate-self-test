@@ -38,7 +38,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SUBSTRATE_COMMIT: 42fcb0e22edfeb7dba1f5afbfa00d0464d4cd25c
+  SUBSTRATE_COMMIT: b53c977c27516c45febda7ec38b8893c7bf55929
 
 jobs:
   verify:
@@ -281,6 +281,19 @@ jobs:
           printf '{"run_id":"%s","commit":"%s","substrate_commit":"%s","started_at":"%s"}\n' \
             "$GITHUB_RUN_ID" "$GITHUB_SHA" "$SUBSTRATE_COMMIT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$t/out/run.json"
           "$RUNNER_TEMP/substrate" gate --baseline substrate-baseline-live.json --current "$t/out/ksi_results.json" --nodes "$t/out/ir/nodes.jsonl" | tee "$t/out/gate.txt"
+      # substrate ADR 0044 (amendment 2026-11-21): a failed live run tells
+      # the team in Slack, with the gate's output (as this public log
+      # already shows it) and the run's link. A scheduled run's failure
+      # notified nobody, and ir-3's regression went unseen for three days.
+      # Only when the live step failed; never changes this job's result.
+      - name: Tell the team the live run failed
+        if: failure() && steps.live.outcome == 'failure'
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          "$RUNNER_TEMP/substrate" alert-gate --gate "$RUNNER_TEMP/out/gate.txt" \
+            --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
       # Run history (history.tf): this run's compiled output, the gate's
       # verdict included, pass or fail, kept for a year so substrate's
       # UI can show the live system over time. Written as the history
