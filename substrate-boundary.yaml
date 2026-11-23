@@ -3,7 +3,7 @@
 # (CR26 MAS-CSO-IIR). This is the provider's declaration - substrate
 # checks it against what it collects, but cannot prove it complete.
 owner: Will Kern, CEO
-declared_on: 2026-10-08
+declared_on: 2026-11-23
 components:
   # The one AWS account and its home Region. Moved 2026-10-08 from
   # 034313911997, whose root access was unrecoverable, to an account in
@@ -22,3 +22,20 @@ components:
   # the running offering (removed 2026-10-07). substrate still parses
   # them statically. Re-declare them as soon as they run on a cluster;
   # deploying to EKS is planned (substrate docs/REQUIREMENTS.md).
+
+# Software the offering runs and patches, named as CISA's KEV catalog
+# names vendors (substrate ADR 0041 answer 2; founder, 2026-11-23,
+# option A). The monthly vulnerability review lists every KEV entry
+# naming one of these as a possible match. A missing match never means
+# "not affected": KEV's names are free text, none of these has an
+# entry today, so their spelling there is unconfirmed, and the review
+# reads every entry added in its window anyway. GitHub-hosted runner
+# software (Linux, Git, OpenSSH...) is GitHub's to patch and isn't
+# listed.
+software:
+  - vendor: PostgreSQL   # RDS substrate-self-test and its us-west-2 replica
+  - vendor: Python       # the two Lambda functions (python3.13)
+  - vendor: HashiCorp    # Terraform and its AWS and archive providers
+  - vendor: Okta
+  - vendor: GitHub
+  - vendor: Amazon

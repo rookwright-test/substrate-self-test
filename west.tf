@@ -83,3 +83,47 @@ resource "aws_cloudwatch_event_target" "west_guardduty_forward" {
   arn       = "arn:aws:events:us-east-2:${data.aws_caller_identity.current.account_id}:event-bus/default"
   role_arn  = aws_iam_role.west_guardduty_forward.arn
 }
+
+# RDS.46, risk accepted (founder, 2026-11-23; review by 2027-05-01).
+# Security Hub fails both databases because they sit in the default
+# VPC's public subnets. Neither is publicly accessible
+# (publicly_accessible = false), and VPC Block Public Access blocks
+# inbound and outbound traffic in both Regions (#118), so there is no
+# way in from the internet. Moving them to private subnets means
+# replacing both, with downtime and the backup and restore-test
+# evidence that follows them: planned for later, not before the demo.
+# A rule applies only in its own Region (AWS's automation rules
+# documentation), so each Region has one.
+resource "aws_securityhub_automation_rule" "rds_46_accepted_west" {
+  provider    = aws.west
+  rule_name   = "RDS.46 risk accepted until 2027-05-01"
+  description = "The database is in the default VPC's public subnets but isn't publicly accessible, and VPC Block Public Access blocks inbound traffic. Accepted by kernwill on 2026-11-23; review by 2027-05-01."
+  rule_order  = 2
+  rule_status = "ENABLED"
+
+  criteria {
+    compliance_security_control_id {
+      comparison = "EQUALS"
+      value      = "RDS.46"
+    }
+    resource_id {
+      comparison = "EQUALS"
+      value      = aws_db_instance.app_replica.arn
+    }
+  }
+
+  actions {
+    type = "FINDING_FIELDS_UPDATE"
+    finding_fields_update {
+      workflow {
+        status = "SUPPRESSED"
+      }
+      note {
+        text       = "RDS.46 risk accepted by kernwill on 2026-11-23, review by 2027-05-01: not publicly accessible, and VPC Block Public Access blocks inbound traffic. See west.tf."
+        updated_by = "terraform"
+      }
+    }
+  }
+
+  depends_on = [aws_securityhub_account.west]
+}
