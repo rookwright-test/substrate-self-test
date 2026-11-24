@@ -230,6 +230,12 @@ jobs:
           quiet "$s" collect --out "$t/runtime" --okta-org-url "$OKTA_ORG_URL" --okta-client-id "$OKTA_CLIENT_ID" \
             --okta-key-id "$OKTA_KEY_ID" --okta-private-key "$t/okta.pem" --aws-audit-regions us-east-2,us-west-2 \
             --github-owner rookwright-test --github-repo substrate-self-test --github-token-path "$t/github.token"
+          # Name, in this log, any GitHub source collect couldn't read and
+          # why: on 2026-11-24 two merges' runs lost the workflow-run list
+          # and the reason was nowhere. Reasons are API error text, never
+          # credentials.
+          jq -r 'to_entries[] | select((.value | type) == "object" and (.value.Provenance.confidence? // "deterministic") != "deterministic")
+            | "::warning::GitHub \(.key) not read: \(.value.Provenance.unresolved_reason)"' "$t/runtime/github.json" || true
           # The second declared Region (substrate ADR 0028): its own run,
           # whose per-Region services compile judges beside us-east-2's.
           quiet "$s" record-admins --runtime "$t/runtime" --history "$t/admins/history.json"
