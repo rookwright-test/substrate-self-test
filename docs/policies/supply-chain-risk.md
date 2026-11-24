@@ -65,6 +65,45 @@ Current result:
 | Cloudflare (hosted demo) | No (it shows copies; the record stays in AWS) | No | No | No |
 | Container image | No | No | No | No (not deployed) |
 
+## Who carries out supply chain risk management (SR-2(1))
+
+Rookwright is a small team, so supply chain risk management is carried
+out by two roles rather than a separate team:
+
+- **The CEO (Administrator)** leads it: keeps this document current,
+  assesses and chooses suppliers and components, and responds to
+  supplier notices (SR-8 below).
+- **The Independent Reviewer** reviews it: approves every change to this
+  document through its pull request, and signs off the yearly review of
+  external services and suppliers.
+
+This is revisited when the team grows.
+
+## How suppliers and components are chosen (SR-5)
+
+Before a supplier, service or software component is added or replaced:
+
+1. **Authorization.** A service that will hold federal customer data
+   must be a FedRAMP-authorized offering at the system's class. Any
+   other service records its FedRAMP status, and the risk accepted if it
+   has none, in the table above.
+2. **Agreement.** Use the supplier's standard customer agreement, and
+   confirm it includes security incident notification terms (SR-8).
+   Record which agreement covers it.
+3. **Criticality.** Run the criticality analysis above before adding it.
+   A critical component needs a recorded response in the assessment
+   table before it is used.
+4. **Least access.** Give the supplier, or the credentials it uses, only
+   the access it needs: read-only where possible, scoped to one
+   repository or bucket.
+5. **Software components.** Take them from the publisher's official
+   source, pinned to a full commit SHA, image digest or lock-file hash.
+   Pull requests run GitHub's dependency review. Updating a component is
+   a reviewed change.
+6. **Recorded and approved.** The supplier or component is added to this
+   document through a pull request approved by someone other than its
+   author.
+
 ## Notification of supply chain compromises (SR-8)
 
 **Agreements.** AWS, Okta and GitHub are used under their standard
