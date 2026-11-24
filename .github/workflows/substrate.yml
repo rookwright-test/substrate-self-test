@@ -38,7 +38,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SUBSTRATE_COMMIT: ff766187e46ec2d30dee8707ed4c29bf58467ccc
+  SUBSTRATE_COMMIT: 4d4f7b85ab3be5254b61e6d2fb6bcf13d66ce9d4
 
 jobs:
   verify:
@@ -260,6 +260,18 @@ jobs:
             --github-owner rookwright-test --github-repo substrate-self-test --github-token-path "$t/github.token" \
             --out "$t/review" > "$t/review-vulnerability.log" 2>&1 \
             || echo "::warning::review-vulnerability failed, so this run has no vulnerability review packet."
+          # The functions review's packet (substrate ADR 0047): read-only, a
+          # review aid, never evidence. Okta apps and sign-on policies (its
+          # own token asks for okta.apps.read and okta.policies.read only),
+          # the actions the workflows use, and the declared AWS services and
+          # inbound rules. It prepares the monthly functions-review issue and
+          # the yearly configuration review. A failure only leaves this run
+          # without a packet.
+          "$s" review-functions --task configuration-review --github "$t/runtime/github.json" \
+            --source . --parameters substrate-parameters.yaml \
+            --okta-org-url "$OKTA_ORG_URL" --okta-client-id "$OKTA_CLIENT_ID" --okta-key-id "$OKTA_KEY_ID" \
+            --okta-private-key "$t/okta.pem" --out "$t/review" > "$t/review-functions.log" 2>&1 \
+            || echo "::warning::review-functions failed, so this run has no functions review packet."
           rm -f "$t/okta.pem" "$t/github.token"
           # The binary is named, not "$s", so substrate can read from this
           # workflow that the gate judges the live system (cm-4.2).
@@ -277,6 +289,9 @@ jobs:
           fi
           if [ -f "$t/review/vulnerability-review.json" ]; then
             mkdir -p "$t/out/review" && cp "$t/review/"vulnerability-review* "$t/out/review/"
+          fi
+          if [ -f "$t/review/functions-review.json" ]; then
+            mkdir -p "$t/out/review" && cp "$t/review/"functions-review* "$t/out/review/"
           fi
           printf '{"run_id":"%s","commit":"%s","substrate_commit":"%s","started_at":"%s"}\n' \
             "$GITHUB_RUN_ID" "$GITHUB_SHA" "$SUBSTRATE_COMMIT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$t/out/run.json"
@@ -355,7 +370,8 @@ jobs:
           aws s3 cp --recursive --only-show-errors --endpoint-url "$R2_ENDPOINT" "$RUNNER_TEMP/out" \
             "s3://rookwright-demo-runs/runs/$(date -u +%Y-%m-%d)/$GITHUB_RUN_ID/" \
             --exclude "review/audit-log-review.json" --exclude "review/audit-log-review.md" \
-            --exclude "review/vulnerability-review.json" --exclude "review/vulnerability-review.md"
+            --exclude "review/vulnerability-review.json" --exclude "review/vulnerability-review.md" \
+            --exclude "review/functions-review.json" --exclude "review/functions-review.md"
           aws s3 cp --only-show-errors --endpoint-url "$R2_ENDPOINT" substrate-baseline-live.json \
             "s3://rookwright-demo-runs/baseline-live.json"
       # The next run restores the newest admin history saved. If a merge's
