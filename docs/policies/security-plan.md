@@ -126,6 +126,11 @@ plan first.
 - AWS, Okta and GitHub operate the underlying platforms. Their own
   controls are assumed, not verified. `supply-chain-risk.md` assesses
   them.
+- Cloudflare (Workers, Containers, R2 and Access) hosts Rookwright's
+  demo, which holds a copy of each run's results. It holds no evidence
+  that isn't also kept in the run history in AWS, and nothing flows
+  back from it into the environment. `supply-chain-risk.md` assesses
+  it.
 - The AWS account is a member of Rookwright's own AWS organization. A
   service control policy limits it to us-east-2 (home) and us-west-2
   (second site), with us-east-1 for global services only.
