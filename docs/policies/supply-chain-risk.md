@@ -1,5 +1,5 @@
 ---
-controls: [ra-3.1, sr-6, sr-8, sa-15.3]
+controls: [ra-3.1, sr-2.1, sr-6, sr-8, sa-15.3]
 owner: CEO
 ---
 
